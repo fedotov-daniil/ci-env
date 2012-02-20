@@ -1,0 +1,9 @@
+[submodule "lib/jake"]
+	path = lib/jake
+	url = https://github.com/280north/jake.git
+[submodule "lib/vows"]
+	path = lib/vows
+	url = https://github.com/cloudhead/vows.git
+[submodule "lib/jasmine"]
+	path = lib/jasmine
+	url = https://github.com/pivotal/jasmine.git
