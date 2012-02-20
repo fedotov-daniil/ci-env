@@ -10,37 +10,37 @@ var Tag = {
         remote : String,
         config : {}
     },
-    Artifact = new Schema({
+    ArtifactSchema = new Schema({
         tags : [Tag],
         publisher : String,
         config : {}
     }),
-    Task = new Schema({
+    TaskSchema = new Schema({
         title : String,
         type : String,
         config : {}
     }),
-    Job = new Schema({
+    JobSchema = new Schema({
         title : String,
-        tasks : [Task],
+        tasks : [TaskSchema],
         repo : Repo,
         tags : [Tag],
-        artifacts : [Artifact],
+        artifacts : [ArtifactSchema],
         is_parallel : Boolean
     }),
-    Stage = new Schema({
+    StageSchema = new Schema({
         title:String,
-        jobs:[Job]
+        jobs:[JobSchema]
     }),
-    ProjectSettings = new Schema({
+    ProjectSettingsSchema = new Schema({
 
     }),
-    Project = new Schema({
+    ProjectSchema = new Schema({
         title:String,
-        stages:[Stage],
-        settings : ProjectSettings
+        stages:[StageSchema],
+        settings : ProjectSettingsSchema
     }),
-    Runner = new Schema({
+    RunnerSchema = new Schema({
         type : String,
         config : {}
     });
