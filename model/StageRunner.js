@@ -1,72 +1,100 @@
-
-var mongoose = require('mongoose'),
-    Stage = mongoose.model('Stage', StageSchema),
-    Job = mongoose.model('Job', JobSchema);
-
-
-
-var events = require('events'),
-    util = require('util');
-
-var Runner = function(){
-    events.EventEmitter.call(this);
+var Runner = function () {
 };
-util.inherits(Runner, events.EventEmitter);
+Runner.prototype = {
+    canRun:function (job) {
+        return true;
+    },
+    run:function (job, callback) {
+        var result;
 
-var RunData = function(jobs){
+        callback(result);
+    },
+    reserve:function (reserved) {
+        this.reserved = reserved;
+    },
+    getNext:function () {
+        return Runner.find({reserved:false});
+    }
+};
+
+
+var JobStatus = {'queued':0, 'running':1, 'stopped':2};
+Object.freeze(JobStatus);
+
+var StageRunner = function (jobs, onSuccess, onFail) {
     this.jobs = jobs;
+    this.jobs.map(function (job) {
+        job.status = JobStatus.queued;
+    });
+    this.onSuccess = onSuccess;
+    this.onFail = onFail;
 };
 
-RunData.prototype.getRunner = function(job){
-    var runner;
-    while(runner = Runner.getNext()){
-        if (runner.canRun(job)){
-            return runner;
+StageRunner.prototype = {
+
+    getRunner:function (job) {
+        var runner;
+        while (runner = Runner.prototype.getNext()) {
+            runner.reserve(true);
+            if (runner.canRun(job)) {
+                return runner;
+            }
+            else {
+                runner.release(false);
+            }
+        }
+    },
+    hasJobsLeft:function () {
+        return this.jobs.some(function (job) {
+            return job.status === JobStatus.queued;
+        });
+    },
+    isFinished:function () {
+        return this.jobs.every(function (job) {
+            return job.status === JobStatus.stopped;
+        });
+    },
+    canRun:function (job) {
+        return job.status === JobStatus.queued &&
+            (job.is_parallel ||
+                !this.jobs.some(function (job) {
+                    return job.status === JobStatus.running;
+                }));
+    },
+
+    onStop:function (result) {
+
+        //TODO: on stop postprocess
+        result.job.status = JobStatus.stopped;
+
+        if (result.error) {
+            //TODO: on error
+            this.onFail(result.error);
+        }
+
+        if (this.hasJobsLeft()) {
+            this.runJobs();
+        }
+        if (this.isFinished()) {
+            this.onSuccess();
+        }
+
+    },
+    runJobs:function () {
+        var jobsCount = this.jobs.length,
+            i = 0,
+            job,
+            runner;
+
+        for (i; i < jobsCount; i++) {
+            job = this.jobs[i];
+            if (this.canRun(job) &&
+                (runner = this.getRunner(job))) {
+                job.status = JobStatus.running;
+                runner.run(job, this.onStop.bind(this));
+            }
         }
     }
 };
 
-RunData.prototype.registerRunner = function(runner){
-    var stop = function(result){
-        runner.removeAllListeners('stop');
-        this.onStop(result);
-    };
-    runner.on('stop', stop);
-};
-
-
-
-RunData.prototype.onStop = function(result){
-
-    //TODO: on stop postprocess
-    this.releaseJob(result.job);
-
-    if (result.error){
-        //TODO: on error
-        this.stopBuild();
-    }
-
-    if (this.hasJobsLeft()){
-        this.runJobs();
-    }
-
-};
-
-RunData.prototype.runJobs = function(){
-    var jobsCount = this.jobs.length,
-        i = 0,
-        job,
-        runner;
-
-    for (i; i < jobsCount;i++){
-        job = this.jobs[i];
-        if (this.canRun(job) &&
-            (runner = this.getRunner(job)))
-        {
-            this.registerRunner(runner);
-            this.registerJob(job);
-            runner.run(job);
-        }
-    }
-};
 
